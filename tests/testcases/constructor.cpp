@@ -9,7 +9,25 @@ TEST(Constructor, standard){
     EXPECT_EQ(uint256_t(), 0);
     EXPECT_EQ(value, original);
     EXPECT_EQ(uint256_t(std::move(value)), original);
-    EXPECT_EQ(value, 0);
+    EXPECT_EQ(value, 0x0123456789abcdefULL);
+}
+
+TEST(Constructor, string){
+    EXPECT_EQ(uint256_t("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"), uint256_max);
+    EXPECT_EQ(uint256_t("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"), uint256_max);
+    EXPECT_EQ(uint256_t("0x0"), 0);
+    EXPECT_EQ(uint256_t("0"), 0);
+    EXPECT_EQ(uint256_t("0x0123456789abcdef"), 0x0123456789abcdefULL);
+}
+
+TEST(Constructor, base_string){
+    EXPECT_EQ(uint256_t("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16), uint256_max);
+    EXPECT_EQ(uint256_t("115792089237316195423570985008687907853269984665640564039457584007913129639935", 10), uint256_max);
+    EXPECT_EQ(uint256_t("1111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111", 2), uint256_max);
+    EXPECT_EQ(uint256_t("0", 10), 0);
+    EXPECT_EQ(uint256_t("0123456789abcdef", 16), 0x0123456789abcdefULL);
+    EXPECT_EQ(uint256_t("755", 8), 0x01ed);
+    EXPECT_EQ(uint256_t("31415926", 10), 0x01df5e76ULL);
 }
 
 TEST(Constructor, one){

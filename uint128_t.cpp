@@ -3,36 +3,59 @@
 const uint128_t uint128_0(0);
 const uint128_t uint128_1(1);
 
-uint128_t::uint128_t()
-    : UPPER(0), LOWER(0)
-{}
-
-uint128_t::uint128_t(const uint128_t & rhs)
-    : UPPER(rhs.UPPER), LOWER(rhs.LOWER)
-{}
-
-uint128_t::uint128_t(uint128_t && rhs)
-    : UPPER(std::move(rhs.UPPER)), LOWER(std::move(rhs.LOWER))
-{
-    if (this != &rhs){
-        rhs.UPPER = 0;
-        rhs.LOWER = 0;
-    }
+uint128_t::uint128_t(std::string & s) {
+    init(s.c_str());
 }
 
-uint128_t & uint128_t::operator=(const uint128_t & rhs){
-    UPPER = rhs.UPPER;
-    LOWER = rhs.LOWER;
-    return *this;
+uint128_t::uint128_t(const char *s) {
+    init(s);
 }
 
-uint128_t & uint128_t::operator=(uint128_t && rhs){
-    if (this != &rhs){
-        UPPER = std::move(rhs.UPPER);
-        LOWER = std::move(rhs.LOWER);
-        rhs.UPPER = 0;
-        rhs.LOWER = 0;
+uint128_t::uint128_t(const bool & b)
+    : uint128_t((uint8_t) b)
+{}
+
+void uint128_t::init(const char *s) {
+    if (s == NULL || s[0] == 0) { uint128_t(); return; }
+    if (s[1] == 'x')
+        s += 2;
+    else if (*s == 'x')
+        s++;
+
+    UPPER = ConvertToUint64(s);
+    LOWER = ConvertToUint64(s + 16);
+}
+
+uint64_t uint128_t::ConvertToUint64(const char *s) const {
+    int count = 0;
+    uint64_t val = 0;
+    while (count < 16) {
+        uint8_t hv = HexToInt(&s[count++]);
+        if (hv == 0xFF)
+            break;
+
+        val = (val << 4) | hv;
     }
+    return val;
+}
+
+uint8_t uint128_t::HexToInt(const char *s) const {
+    uint8_t ret = 0xFF;
+    if (*s >= '0' && *s <= '9') {
+        ret = uint8_t(*s - '0');
+    }
+    else if (*s >= 'a' && *s <= 'f') {
+        ret = uint8_t(*s - 'a' + 10);
+    }
+    else if (*s >= 'A' && *s <= 'F') {
+        ret = uint8_t(*s - 'A' + 10);
+    }
+    return ret;
+}
+
+uint128_t & uint128_t::operator=(const bool & rhs) {
+    UPPER = 0;
+    LOWER = rhs;
     return *this;
 }
 
@@ -256,6 +279,22 @@ uint128_t & uint128_t::operator*=(const uint128_t & rhs){
     return *this;
 }
 
+void uint128_t::ConvertToVector(std::vector<uint8_t> & ret, const uint64_t & val) const {
+    ret.push_back(static_cast<uint8_t>(val >> 56));
+    ret.push_back(static_cast<uint8_t>(val >> 48));
+    ret.push_back(static_cast<uint8_t>(val >> 40));
+    ret.push_back(static_cast<uint8_t>(val >> 32));
+    ret.push_back(static_cast<uint8_t>(val >> 24));
+    ret.push_back(static_cast<uint8_t>(val >> 16));
+    ret.push_back(static_cast<uint8_t>(val >> 8));
+    ret.push_back(static_cast<uint8_t>(val));
+}
+
+void uint128_t::export_bits(std::vector<uint8_t> &ret) const {
+    ConvertToVector(ret, const_cast<const uint64_t&>(UPPER));
+    ConvertToVector(ret, const_cast<const uint64_t&>(LOWER));
+}
+
 std::pair <uint128_t, uint128_t> uint128_t::divmod(const uint128_t & lhs, const uint128_t & rhs) const{
     // Save some calculations /////////////////////
     if (rhs == uint128_0){
@@ -277,12 +316,12 @@ std::pair <uint128_t, uint128_t> uint128_t::divmod(const uint128_t & lhs, const 
         qr.second <<= uint128_1;
 
         if ((lhs >> (x - 1U)) & 1){
-            qr.second++;
+            ++qr.second;
         }
 
         if (qr.second >= rhs){
             qr.second -= rhs;
-            qr.first++;
+            ++qr.first;
         }
     }
     return qr;

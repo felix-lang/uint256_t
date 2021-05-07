@@ -1,4 +1,6 @@
 #include "uint256_t.build"
+#include <vector>
+#include <cstring>
 
 const uint128_t uint128_64(64);
 const uint128_t uint128_128(128);
@@ -7,36 +9,70 @@ const uint256_t uint256_0(0);
 const uint256_t uint256_1(1);
 const uint256_t uint256_max(uint128_t((uint64_t) -1, (uint64_t) -1), uint128_t((uint64_t) -1, (uint64_t) -1));
 
-uint256_t::uint256_t()
-    : UPPER(uint128_0), LOWER(uint128_0)
+uint256_t::uint256_t(const std::string & s) {
+    init(s.c_str());
+}
+
+uint256_t::uint256_t(const char * s) {
+    init(s);
+}
+
+uint256_t::uint256_t(const std::string & s, uint8_t base) {
+    init_from_base(s.c_str(), base);
+}
+
+uint256_t::uint256_t(const char * s, uint8_t base) {
+    init_from_base(s, base);
+}
+
+uint256_t::uint256_t(const bool & b)
+    : uint256_t((uint8_t) b)
 {}
 
-uint256_t::uint256_t(const uint256_t & rhs)
-    : UPPER(rhs.UPPER), LOWER(rhs.LOWER)
-{}
+void uint256_t::init(const char * s) {
+    //create from string
+    char buffer[64];
+    if (s == NULL) { uint256_t(); return; }
+    if (s[1] == 'x')
+        s += 2;
+    else if (*s == 'x')
+        s++;
 
-uint256_t::uint256_t(uint256_t && rhs)
-    : UPPER(std::move(rhs.UPPER)), LOWER(std::move(rhs.LOWER))
-{
-    if (this != &rhs){
-        rhs.UPPER = uint128_0;
-        rhs.LOWER = uint128_0;
+    int len = strlen(s);
+    int padLength = 0;
+    if (len < 64) {
+        padLength = 64 - len;
+        memset(buffer, '0', padLength);
+    }
+
+    memcpy(buffer + padLength, s, len);
+
+    UPPER = uint128_t(buffer);
+    LOWER = uint128_t(buffer + 32);
+}
+
+void uint256_t::init_from_base(const char * s, uint8_t base) {
+    *this = 0;
+
+    uint256_t power(1);
+    uint8_t digit;
+    int pos = strlen(s) - 1;
+    while(pos >= 0) {
+        digit = 0;
+        if('0' <= s[pos] && s[pos] <= '9') {
+            digit = s[pos] - '0';
+        } else if('a' <= s[pos] && s[pos] <= 'z') {
+            digit = s[pos] - 'a' + 10;
+        }
+        *this += digit * power;
+        pos--;
+        power *= base;
     }
 }
 
-uint256_t & uint256_t::operator=(const uint256_t & rhs){
-    UPPER = rhs.UPPER;
-    LOWER = rhs.LOWER;
-    return *this;
-}
-
-uint256_t & uint256_t::operator=(uint256_t && rhs){
-    if (this != &rhs){
-        UPPER = std::move(rhs.UPPER);
-        LOWER = std::move(rhs.LOWER);
-        rhs.UPPER = uint128_0;
-        rhs.LOWER = uint128_0;
-    }
+uint256_t & uint256_t::operator=(const bool & rhs) {
+    UPPER = 0;
+    LOWER = rhs;
     return *this;
 }
 
@@ -465,6 +501,25 @@ const uint128_t & uint256_t::upper() const {
 
 const uint128_t & uint256_t::lower() const {
     return LOWER;
+}
+
+std::vector<uint8_t> uint256_t::export_bits() const {
+    std::vector<uint8_t> ret;
+    ret.reserve(32);
+    UPPER.export_bits(ret);
+    LOWER.export_bits(ret);
+    return ret;
+}
+
+std::vector<uint8_t> uint256_t::export_bits_truncate() const {
+    std::vector<uint8_t> ret = export_bits();
+
+	//prune the zeroes
+	int i = 0;
+	while (ret[i] == 0 && i < 64) i++;
+	ret.erase(ret.begin(), ret.begin() + i);
+
+	return ret;
 }
 
 uint16_t uint256_t::bits() const{
